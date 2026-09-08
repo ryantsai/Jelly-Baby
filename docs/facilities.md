@@ -259,14 +259,16 @@ and stops the second pass when the first pass found no overlap. Authored fitted
 boxes may override that default margin, as the swing seat does. The trampoline
 barrier uses a squared radial test before taking a square root.
 
-Inside the existing proximity gates, collision now bounds the current cage's
-surface bindings before reconstructing any contact samples. The conservative
+Collision bounds the current cage's surface bindings before reconstructing any
+contact samples. A shared world AABB and per-facility AABBs replace the old
+center-distance collision gates. The conservative
 bound includes signed/extrapolating weights and partition-of-unity error; it
 does not depend on the last rendered surface or a fixed body-center radius.
-Box-axis projections reject individual pieces, and rejecting every piece skips
+Per-piece world AABBs followed by box-axis projections reject individual pieces, and rejecting every piece skips
 the whole facility narrow phase. The cylinder rejects by height and horizontal
-distance from the body enclosure. Bounds are rebuilt per collision call because
-the solver and earlier facilities can change cage positions in the same step.
+distance from the body enclosure. Fast-throw bounds include the sweep path.
+Bounds are shared only within the controlled facility pass and invalidated after
+each correction because earlier facilities can change cage positions in the same step.
 Like boxes, the cylinder omits its second iteration when the first finds no
 contact, since an identical repeated pass cannot change the result.
 
@@ -274,9 +276,10 @@ Candidate rejection lasts only until the first contact in a call. That contact
 can move shared cage nodes into a previously excluded piece, so subsequent
 checks immediately resume the original complete traversal, including the second
 iteration. This preserves sample order, contact response and moving-seat recoil.
-The existing proximity/occupancy gates remain unchanged to preserve which
-contacts gameplay previously allowed; no delayed activation or sleeping timer
-is introduced. See `npm run test:collision-broadphase` for exact comparisons
+Occupancy gates and interaction radii remain unchanged; no delayed activation
+or sleeping timer is introduced. The conservative gates also cover stretched
+limbs beyond the old center-distance cutoffs. See [Collision hierarchy](collision-hierarchy.md)
+and `npm run test:collision-broadphase` for exact comparisons
 against the exhaustive traversal and focused collision CPU measurements.
 
 Fast bulk throws (over 0.8 m/s) get one additional sweep of the existing contact

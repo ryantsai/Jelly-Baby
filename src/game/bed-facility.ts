@@ -14,9 +14,10 @@ export class BedFacility implements Facility {
   readonly physics:BedPhysics;
   readonly blanket=new BedBlanket();
   private readonly visual:Bed;
-  private readonly collision:FacilityCollision;
+  readonly collision:FacilityCollision;
   constructor(scene:Scene,body:SoftBody,shadows:FacilityShadows){
     this.physics=new BedPhysics(body);this.visual=new Bed(this.blanket);this.collision=new FacilityCollision(body);scene.add(this.visual.group);
+    this.collision.registerBoxes(this.visual.boxes);
     shadows.add(this.visual.group,new Box3(new Vector3(BED.x-.066,-.001,BED.z-.082),new Vector3(BED.x+.066,.115,BED.z+.095)));
   }
   get active(){return this.physics.active;}
@@ -28,7 +29,7 @@ export class BedFacility implements Facility {
   step(h:number){this.physics.step(h);this.lastStep=h;}
   private lastStep=1/240;
   afterStep(){
-    if(!this.active&&Math.hypot(this.physics.body.center.x-BED.x,this.physics.body.center.z-BED.z)<.18)this.collision.resolveBoxes(this.visual.boxes);
+    if(!this.active)this.collision.resolveBoxes(this.visual.boxes);
     this.blanket.step(this.lastStep,this.physics.body,this.active);
   }
   update(){
@@ -36,5 +37,5 @@ export class BedFacility implements Facility {
     this.blanket.prepareRender(this.physics.body,this.active);this.visual.update();
   }
   reset(){this.physics.reset();this.blanket.reset();this.update();}
-  dispose(){this.visual.dispose();}
+  dispose(){this.collision.dispose();this.visual.dispose();}
 }

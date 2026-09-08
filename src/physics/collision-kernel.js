@@ -16,6 +16,7 @@ function packHalfSize(packed,offset,halfSize,delta){
 /** Collision buffers belong to one soft-body module and never grow its memory. */
 export function createCollisionKernels(ex,allocCopy,allocZero) {
   let contact=null,clearance=null;
+  const [boundsPtr,boundsView]=allocZero(6,Float64Array);
   const gridBuffer=(state,length,Ctor)=>{
     if(!state.grid||state.grid[1].length<length){
       state.grid=allocZero(Math.max(length,(state.grid?.[1].length??0)*2),Ctor);
@@ -28,13 +29,15 @@ export function createCollisionKernels(ex,allocCopy,allocZero) {
     return state.activeGrid;
   };
   return {
+    collisionBounds(magnitude,error){ex.collision_bounds(boundsPtr,magnitude,error);return boundsView;},
     createFacilityCollision(vertices,denominators,magnitude,error){
       const [verticesPtr]=allocCopy(vertices,Uint32Array),[denominatorsPtr]=allocCopy(denominators,Float64Array);
       let capacity=0,boxesPtr=0,candidatesPtr=0,motionsPtr=0,packed,motions;
       const motionList=[];
       const samples=vertices.length;
       return {
-        resolveBoxes(boxes,margin){
+        /** @param {Float64Array | undefined} bounds */
+        resolveBoxes(boxes,margin,bounds=undefined){
           // Unknown user-defined motions keep their callback semantics in JS.
           for(let i=0;i<boxes.length;i++)if(boxes[i].motion&&!boxes[i].motion.nativePendulum)return null;
           if(boxes.length>capacity){
@@ -62,11 +65,16 @@ export function createCollisionKernels(ex,allocCopy,allocZero) {
             }
             packed[offset+15]=index;
           }
-          const changed=ex.collision_boxes(verticesPtr,denominatorsPtr,samples,magnitude,error,boxesPtr,boxes.length,candidatesPtr,motionsPtr,margin,PHYS.restitution,PHYS.floor)!==0;
+          if(bounds)boundsView.set(bounds);
+          const changed=ex.collision_boxes(verticesPtr,denominatorsPtr,samples,magnitude,error,boxesPtr,boxes.length,candidatesPtr,motionsPtr,margin,PHYS.restitution,PHYS.floor,bounds?boundsPtr:0)!==0;
           for(let i=0;i<motionCount;i++)motionList[i].speed=motions[i*4];
           return changed;
         },
-        resolveCylinder(cx,cz,radius,minY,maxY,margin){return ex.collision_cylinder(verticesPtr,denominatorsPtr,samples,magnitude,error,cx,cz,radius,minY,maxY,margin,PHYS.floor)!==0;},
+        /** @param {Float64Array | undefined} bounds */
+        resolveCylinder(cx,cz,radius,minY,maxY,margin,bounds=undefined){
+          if(bounds)boundsView.set(bounds);
+          return ex.collision_cylinder(verticesPtr,denominatorsPtr,samples,magnitude,error,cx,cz,radius,minY,maxY,margin,PHYS.floor,bounds?boundsPtr:0)!==0;
+        },
       };
     },
     sampleBlanket(surface,heights,columns,rows,dx,dz,bedX,bedZ){

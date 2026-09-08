@@ -14,13 +14,15 @@ export class TrampolineFacility implements Facility {
   readonly cameraDistance=.30;
   readonly physics:TrampolinePhysics;
   private readonly visual=new Trampoline();
-  private readonly collision:FacilityCollision;
+  readonly collision:FacilityCollision;
   private laughStarted=false;
   private readonly audio:FacilityMotionSound;
   constructor(scene:Scene,body:SoftBody,shadows:FacilityShadows,sound:FacilitySoundSink=()=>{}) {
     this.collision=new FacilityCollision(body);
     this.audio=new FacilityMotionSound(sound,{x:TRAMPOLINE.x,y:TRAMPOLINE.height,z:TRAMPOLINE.z});
     this.physics=new TrampolinePhysics(body);scene.add(this.visual.group);
+    this.collision.registerCylinder(TRAMPOLINE.x,TRAMPOLINE.z,TRAMPOLINE.radius,PHYS.floor,
+      TRAMPOLINE.height+TRAMPOLINE.rimCenterOffset+TRAMPOLINE.rimHalfHeight);
     shadows.add(this.visual.group,new Box3(
       new Vector3(TRAMPOLINE.x-.105,0,TRAMPOLINE.z-.105),
       new Vector3(TRAMPOLINE.x+.105,TRAMPOLINE.height+.015,TRAMPOLINE.z+.105),
@@ -44,8 +46,6 @@ export class TrampolineFacility implements Facility {
     // A cylinder-shaped keep-out barrier follows the trampoline's disk. It is
     // only active below the top of the cushion, so a sufficiently high jump can
     // still clear the obstacle.
-    const b=this.physics.body;
-    if(Math.hypot(b.center.x-TRAMPOLINE.x,b.center.z-TRAMPOLINE.z)>.21)return;
     this.collision.resolveCylinderBarrier(
       TRAMPOLINE.x,TRAMPOLINE.z,TRAMPOLINE.radius,PHYS.floor,
       TRAMPOLINE.height+TRAMPOLINE.rimCenterOffset+TRAMPOLINE.rimHalfHeight,
@@ -53,5 +53,5 @@ export class TrampolineFacility implements Facility {
   }
   update() {this.visual.update(this.physics.compression);}
   reset() {this.audio.reset();this.physics.reset();this.laughStarted=false;this.update();}
-  dispose() {this.visual.group.removeFromParent();this.visual.dispose();}
+  dispose() {this.collision.dispose();this.visual.group.removeFromParent();this.visual.dispose();}
 }

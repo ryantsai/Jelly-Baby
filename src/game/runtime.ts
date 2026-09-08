@@ -45,7 +45,7 @@ export async function startGame(stage:(s:string)=>void,fail:(e:unknown)=>void) {
   const table=await makeTable(optics,environment,facilityShadows);scene.add(table.mesh);
   const composite=createComposite(renderer,scene,camera);
   const rig=new Locomotion(body);
-  const facilities=new Facilities();
+  const facilities=new Facilities(body);
   const wearableTable=new WearableFacility(scene,body,baby.group,rig,facilityShadows);
   const bed=new BedFacility(scene,body,facilityShadows);
   rig.onJump=()=>wearableTable.jumpFromNormalLocomotion();

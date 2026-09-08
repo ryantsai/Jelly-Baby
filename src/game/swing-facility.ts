@@ -16,7 +16,7 @@ export class SwingFacility implements Facility {
   readonly cameraDistance=.29;
   readonly physics:SwingPhysics;
   private readonly visual=new Swing();
-  private readonly collision:FacilityCollision;
+  readonly collision:FacilityCollision;
   private laughStarted=false;
   private laughBeyondThreshold=false;
   private readonly audio:FacilityMotionSound;
@@ -24,6 +24,7 @@ export class SwingFacility implements Facility {
     this.collision=new FacilityCollision(body);
     this.audio=new FacilityMotionSound(sound,{x:SWING.x,y:SWING.height,z:SWING.z});
     this.physics=new SwingPhysics(body);this.visual.update(this.physics.angle,this.physics.seatCollisionMotion);scene.add(this.visual.group);
+    this.collision.registerBoxes(this.visual.collisionBoxes);
     shadows.add(this.visual.group,new Box3(
       new Vector3(SWING.x-.10,0,SWING.z-.15),
       new Vector3(SWING.x+.10,SWING.height+.02,SWING.z+.15),
@@ -54,8 +55,7 @@ export class SwingFacility implements Facility {
   }
   afterStep() {
     if(this.active)return;
-    const b=this.physics.body;
-    if(Math.abs(b.center.x-SWING.x)>.23||Math.abs(b.center.z-SWING.z)>.23)return;
+    if(!this.collision.mayCollide())return;
     // Seat boxes carry a tight fitting-margin override; frame boxes retain the
     // general margin used by sparse surface contacts.
     this.visual.update(this.physics.angle,this.physics.seatCollisionMotion);
@@ -63,5 +63,5 @@ export class SwingFacility implements Facility {
   }
   update() {this.visual.update(this.physics.angle,this.physics.seatCollisionMotion);}
   reset() {this.audio.reset();this.laughStarted=false;this.laughBeyondThreshold=false;this.physics.reset();this.update();}
-  dispose() {this.visual.group.removeFromParent();this.visual.dispose();}
+  dispose() {this.collision.dispose();this.visual.group.removeFromParent();this.visual.dispose();}
 }

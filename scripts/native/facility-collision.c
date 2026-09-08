@@ -8,15 +8,44 @@ static void collision_point(uint32_t vertex,const double *x,double *p){
   for(int k=0;k<4;k++)for(int a=0;a<3;a++)p[a]+=x[ids[k]*3+a]*w[k];
 }
 static void collision_bounds(double *b,double magnitude,double error){
-  const double *x=d64(x_p);
+  const double *x=d64(x_p),*previous=d64(previous_p),*v=d64(velocity_p),*mass=d64(mass_p);
+  double vx=0,vy=0,vz=0,dx=0,dy=0,dz=0;
   for(int a=0;a<3;a++){b[a]=1.0/0.0;b[a+3]=-1.0/0.0;}
-  for(uint32_t i=0;i<node_count*3;i+=3)for(int a=0;a<3;a++){b[a]=dmin(b[a],x[i+a]);b[a+3]=dmax(b[a+3],x[i+a]);}
+  for(uint32_t i=0;i<node_count*3;i+=3){
+    for(int a=0;a<3;a++){b[a]=dmin(b[a],x[i+a]);b[a+3]=dmax(b[a+3],x[i+a]);}
+    double w=mass[i/3]/total_mass;
+    vx+=w*v[i];vy+=w*v[i+1];vz+=w*v[i+2];
+    dx+=w*(x[i]-previous[i]);dy+=w*(x[i+1]-previous[i+1]);dz+=w*(x[i+2]-previous[i+2]);
+  }
+  int swept=vx*vx+vy*vy+vz*vz>=.8*.8&&dx*dx+dy*dy+dz*dz>=1e-10;
+  if(swept)for(uint32_t i=0;i<node_count*3;i+=3)for(int a=0;a<3;a++){
+    double p=previous[i+a],delta=a==0?dx:a==1?dy:dz;
+    b[a]=dmin(dmin(b[a],p),p+delta);b[a+3]=dmax(dmax(b[a+3],p),p+delta);
+  }
   for(int a=0;a<3;a++){
     double center=(b[a]+b[a+3])*.5,radius=(b[a+3]-b[a])*.5*magnitude+cabs(center)*error;
+    if(swept)radius+=cabs(a==0?dx:a==1?dy:dz)*error;
     double pad=1e-10*(1+cabs(center)+radius);b[a]=center-radius-pad;b[a+3]=center+radius+pad;
   }
 }
+__attribute__((export_name("collision_bounds"))) void export_collision_bounds(uint32_t out,double magnitude,double error){collision_bounds(d64(out),magnitude,error);}
+
+static int collision_world_separated(const double *b,const double *box,double margin){
+  const double *a=box+3,*n=box+6,*c=box+9;
+  double i00=n[1]*c[2]-n[2]*c[1],i01=a[2]*c[1]-a[1]*c[2],i02=a[1]*n[2]-a[2]*n[1];
+  double i10=n[2]*c[0]-n[0]*c[2],i11=a[0]*c[2]-a[2]*c[0],i12=a[2]*n[0]-a[0]*n[2];
+  double i20=n[0]*c[1]-n[1]*c[0],i21=a[1]*c[0]-a[0]*c[1],i22=a[0]*n[1]-a[1]*n[0];
+  double det=a[0]*i00+a[1]*i10+a[2]*i20;
+  if(!__builtin_isfinite(det)||cabs(det)<1e-12)return 0;
+  double hx=box[12]+margin,hy=box[13]+margin,hz=box[14]+margin,scale=1/cabs(det);
+  double rx=(cabs(i00)*hx+cabs(i01)*hy+cabs(i02)*hz)*scale;
+  double ry=(cabs(i10)*hx+cabs(i11)*hy+cabs(i12)*hz)*scale;
+  double rz=(cabs(i20)*hx+cabs(i21)*hy+cabs(i22)*hz)*scale;
+  double pad=1e-10*(1+cabs(box[0])+cabs(box[1])+cabs(box[2])+rx+ry+rz);
+  return b[3]<box[0]-rx-pad||b[0]>box[0]+rx+pad||b[4]<box[1]-ry-pad||b[1]>box[1]+ry+pad||b[5]<box[2]-rz-pad||b[2]>box[2]+rz+pad;
+}
 static int collision_overlaps(const double *b,const double *box,double margin){
+  if(collision_world_separated(b,box,margin))return 0;
   double d[3],r[3];for(int a=0;a<3;a++){d[a]=(b[a]+b[a+3])*.5-box[a];r[a]=(b[a+3]-b[a])*.5;}
   for(int a=0;a<3;a++){
     const double *n=box+3+a*3;
@@ -80,9 +109,10 @@ static int collision_throw(const uint32_t *vertices,uint32_t samples,const doubl
     v[j]+=impulse*nx;v[j+1]+=impulse*ny;v[j+2]+=impulse*nz;
   }return 1;
 }
-__attribute__((export_name("collision_boxes"))) int collision_boxes(uint32_t vertices_p,uint32_t denominators_p,uint32_t samples,double magnitude,double error,uint32_t boxes_p,uint32_t count,uint32_t candidates_p,uint32_t motions_p,double margin,double restitution,double floor){
+__attribute__((export_name("collision_boxes"))) int collision_boxes(uint32_t vertices_p,uint32_t denominators_p,uint32_t samples,double magnitude,double error,uint32_t boxes_p,uint32_t count,uint32_t candidates_p,uint32_t motions_p,double margin,double restitution,double floor,uint32_t bounds_p){
   const uint32_t *vertices=u32(vertices_p);const double *denominators=d64(denominators_p),*boxes=d64(boxes_p);uint32_t *candidates=u32(candidates_p);
-  double b[6];collision_bounds(b,magnitude,error);uint32_t found=0;
+  double scratch[6];const double *b=bounds_p?d64(bounds_p):scratch;
+  if(!bounds_p)collision_bounds(scratch,magnitude,error);uint32_t found=0;
   for(uint32_t i=0;i<count;i++)if(collision_overlaps(b,boxes+i*16,margin))candidates[found++]=i;
   if(!found)return 0;
   int changed=collision_throw(vertices,samples,boxes,candidates,found,margin,restitution),exhaustive=0;
@@ -109,8 +139,9 @@ __attribute__((export_name("collision_boxes"))) int collision_boxes(uint32_t ver
   }
   if(changed)stabilize_contacts(floor);return changed;
 }
-__attribute__((export_name("collision_cylinder"))) int collision_cylinder(uint32_t vertices_p,uint32_t denominators_p,uint32_t samples,double magnitude,double error,double cx,double cz,double radius,double minY,double maxY,double margin,double floor){
-  double boundary=radius+margin,squared=boundary*boundary,b[6];collision_bounds(b,magnitude,error);
+__attribute__((export_name("collision_cylinder"))) int collision_cylinder(uint32_t vertices_p,uint32_t denominators_p,uint32_t samples,double magnitude,double error,double cx,double cz,double radius,double minY,double maxY,double margin,double floor,uint32_t bounds_p){
+  double boundary=radius+margin,squared=boundary*boundary,scratch[6];const double *b=bounds_p?d64(bounds_p):scratch;
+  if(!bounds_p)collision_bounds(scratch,magnitude,error);
   if(b[3]<cx-boundary||b[0]>cx+boundary||b[4]<minY||b[1]>maxY||b[5]<cz-boundary||b[2]>cz+boundary)return 0;
   double dx=dmax(dmax(b[0]-cx,0),cx-b[3]),dz=dmax(dmax(b[2]-cz,0),cz-b[5]);if(dx*dx+dz*dz>squared)return 0;
   int changed=0;const uint32_t *vertices=u32(vertices_p);const double *denominators=d64(denominators_p);

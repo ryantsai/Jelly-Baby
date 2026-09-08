@@ -13,13 +13,14 @@ export class WearableFacility implements Facility {
   readonly label='Wearables';
   readonly physics:WearablePhysics;
   readonly visual:WearableTable;
-  private readonly collision:FacilityCollision;
+  readonly collision:FacilityCollision;
   private readonly babyGroup:Group;
   private readonly headPosition=new Vector3();
   private readonly headOrientation=new Quaternion();
 
   constructor(scene:Scene,body:SoftBody,babyGroup:Group,rig:Locomotion,shadows:FacilityShadows) {
     this.physics=new WearablePhysics(body);this.visual=new WearableTable();this.collision=new FacilityCollision(body);
+    this.collision.registerBoxes(this.visual.collisionBoxes);
     this.babyGroup=babyGroup;void rig;scene.add(this.visual.group);
     // The table's wearables can travel with the baby across the play area. The
     // broad, fixed envelope keeps both ground and raised-surface shadow maps
@@ -70,7 +71,7 @@ export class WearableFacility implements Facility {
   step(h:number) {this.physics.step(h);}
 
   afterStep() {
-    if(this.physics.collisionNearby)this.collision.resolveBoxes(this.visual.collisionBoxes);
+    this.collision.resolveBoxes(this.visual.collisionBoxes);
   }
 
   update() {
@@ -91,5 +92,5 @@ export class WearableFacility implements Facility {
   }
 
   reset() {this.physics.reset();this.visual.reset();}
-  dispose() {this.visual.dispose();}
+  dispose() {this.collision.dispose();this.visual.dispose();}
 }

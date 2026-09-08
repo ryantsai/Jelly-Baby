@@ -17,6 +17,7 @@
     "test:blanket-shadows": "node --experimental-strip-types scripts/verify-blanket-shadows.mjs",
     "test:facility-collision": "node --experimental-strip-types scripts/verify-facility-collision.mjs",
     "test:collision-broadphase": "node --experimental-strip-types scripts/verify-collision-broadphase.mjs",
+    "test:collision-hierarchy": "node --experimental-strip-types scripts/verify-collision-hierarchy.mjs",
     "test:native-collision": "node --experimental-strip-types scripts/verify-native-collision.mjs",
     "test:lighting": "node --experimental-strip-types scripts/verify-lighting.mjs",
     "test:facility-shadows": "node --experimental-strip-types scripts/verify-facility-shadows.mjs",

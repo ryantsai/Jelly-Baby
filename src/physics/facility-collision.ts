@@ -1,5 +1,6 @@
 import type { SoftBody } from './soft-body.js';
 import { stopFacilityThrow } from './facility-throw.ts';
+import { bodyCollisionBounds, boxBounds, boundsOverlap, collisionHierarchy, facilityBoxBounds, type CollisionHierarchy } from './collision-bounds.ts';
 
 type PointLike={x:number;y:number;z:number};
 
@@ -46,6 +47,9 @@ export class FacilityCollision {
   private readonly point=new Float64Array(3);
   private readonly motionVelocity:PointLike={x:0,y:0,z:0};
   private readonly bounds=new Float64Array(6);
+  private readonly pieceBounds=new Float64Array(6);
+  private readonly hierarchy:CollisionHierarchy;
+  private registeredBounds:Float64Array|null=null;
   private readonly candidates:CollisionBox[]=[];
   private readonly candidateIndices:number[]=[];
   private native:ReturnType<NonNullable<SoftBody['kernel']>['createFacilityCollision']>|null=null;
@@ -54,6 +58,7 @@ export class FacilityCollision {
 
   constructor(body:SoftBody,spacing=FACILITY_COLLISION_SAMPLE_SPACING) {
     this.body=body;
+    this.hierarchy=collisionHierarchy(body);
     const surface=body.surface as {
       positions:Float32Array;
       bindingIds:Uint32Array;
@@ -84,13 +89,31 @@ export class FacilityCollision {
       this.maxWeightSumError=Math.max(this.maxWeightSumError,Math.abs(sum-1));
       this.denominators[sample]=denominator;
     }
+    this.hierarchy.includeBindings(this.maxWeightMagnitude,this.maxWeightSumError);
   }
+
+  /** Register authored bounds once; re-register if geometry or margins change. */
+  registerBoxes(boxes:readonly CollisionBox[],margin=FACILITY_COLLISION_MARGIN){
+    this.registerBounds(facilityBoxBounds(boxes,margin));
+  }
+  registerCylinder(cx:number,cz:number,radius:number,minY:number,maxY:number,margin=FACILITY_COLLISION_MARGIN){
+    const r=radius+margin,pad=1e-10*(1+Math.abs(cx)+Math.abs(cz)+r+Math.abs(minY)+Math.abs(maxY));
+    this.registerBounds(new Float64Array([cx-r-pad,minY-pad,cz-r-pad,cx+r+pad,maxY+pad,cz+r+pad]));
+  }
+  private registerBounds(bounds:Float64Array){
+    if(this.registeredBounds)this.hierarchy.unregister(this.registeredBounds);
+    this.registeredBounds=bounds;this.hierarchy.register(bounds);
+  }
+  mayCollide(){return !this.registeredBounds||this.hierarchy.forGroup(this.registeredBounds)!==null;}
+  dispose(){if(this.registeredBounds)this.hierarchy.unregister(this.registeredBounds);this.registeredBounds=null;}
 
   /** Resolve tight oriented boxes, such as the swing's timber frame pieces. */
   resolveBoxes(boxes:readonly CollisionBox[],margin=FACILITY_COLLISION_MARGIN) {
     if(!boxes.length)return false;
+    const bounds=this.registeredBounds?this.hierarchy.forGroup(this.registeredBounds):undefined;
+    if(bounds===null)return false;
     const native=this.nativeKernel();
-    if(native){const changed=native.resolveBoxes(boxes,margin);if(changed!==null){this.finish(changed,true);return changed;}}
+    if(native){const changed=native.resolveBoxes(boxes,margin,bounds);if(changed!==null){this.finish(changed,true);return changed;}}
     this.findCandidates(boxes,margin);
     if(!this.candidates.length)return false;
     if(stopFacilityThrow(this.body,this.vertices,this.candidates,margin)){this.finish(true);return true;}
@@ -152,8 +175,10 @@ export class FacilityCollision {
    * jumping above the cylinder remains possible.
    */
   resolveCylinderBarrier(centerX:number,centerZ:number,radius:number,minY:number,maxY:number,margin=FACILITY_COLLISION_MARGIN) {
+    const bounds=this.registeredBounds?this.hierarchy.forGroup(this.registeredBounds):undefined;
+    if(bounds===null)return false;
     const native=this.nativeKernel();
-    if(native){const changed=native.resolveCylinder(centerX,centerZ,radius,minY,maxY,margin);this.finish(changed,true);return changed;}
+    if(native){const changed=native.resolveCylinder(centerX,centerZ,radius,minY,maxY,margin,bounds);this.finish(changed,true);return changed;}
     const boundary=radius+margin;
     const boundarySquared=boundary*boundary;
     this.updateBounds();
@@ -192,26 +217,11 @@ export class FacilityCollision {
   /** Bound the current bindings without reconstructing the dense surface.
    * Signed/extrapolating weights are supported: the cage radius is multiplied
    * by the largest absolute weight sum, with a separate partition-error term.
-   * Never cache across calls: the solver and other facilities mutate body.x.
+   * Reuse only inside the hierarchy's explicitly scoped, invalidated batch.
    */
   private updateBounds() {
-    const x=this.body.x,b=this.bounds;
-    b[0]=b[1]=b[2]=Infinity;b[3]=b[4]=b[5]=-Infinity;
-    for(let i=0;i<x.length;i+=3) {
-      for(let axis=0;axis<3;axis++) {
-        const value=x[i+axis];
-        if(value<b[axis])b[axis]=value;
-        if(value>b[axis+3])b[axis+3]=value;
-      }
-    }
-    for(let axis=0;axis<3;axis++) {
-      const center=(b[axis]+b[axis+3])*.5;
-      const radius=(b[axis+3]-b[axis])*.5*this.maxWeightMagnitude+
-        Math.abs(center)*this.maxWeightSumError;
-      // Outward padding covers floating-point binding and OBB-axis roundoff.
-      const pad=1e-10*(1+Math.abs(center)+radius);
-      b[axis]=center-radius-pad;b[axis+3]=center+radius+pad;
-    }
+    if(this.registeredBounds)this.bounds.set(this.hierarchy.read());
+    else bodyCollisionBounds(this.body,this.maxWeightMagnitude,this.maxWeightSumError,this.bounds);
   }
 
   private overlaps(minX:number,minY:number,minZ:number,maxX:number,maxY:number,maxZ:number) {
@@ -221,6 +231,8 @@ export class FacilityCollision {
 
   private overlapsBox(box:CollisionBox,margin:number) {
     const b=this.bounds;
+    boxBounds(box,margin,this.pieceBounds);
+    if(!boundsOverlap(b,this.pieceBounds))return false;
     const dx=(b[0]+b[3])*.5-box.center.x,dy=(b[1]+b[4])*.5-box.center.y,dz=(b[2]+b[5])*.5-box.center.z;
     const rx=(b[3]-b[0])*.5,ry=(b[4]-b[1])*.5,rz=(b[5]-b[2])*.5;
     // Project the cage enclosure onto exactly the axes used by the narrow
@@ -271,6 +283,7 @@ export class FacilityCollision {
 
   private finish(changed:boolean,native=false) {
     if(!changed)return;
+    this.hierarchy.invalidate();
     this.body.stabilizeContacts(native);
     this.body.wake();this.body.updateCenter();this.body.surfaceDirty=true;
   }

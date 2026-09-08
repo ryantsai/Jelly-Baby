@@ -69,6 +69,11 @@ velocities, pendulum response, and blanket outputs, then reports a short median
 benchmark of the complete calls. It uses the embedded production module and
 does not need a compiler. See [Native collision kernels](native-collision.md).
 
+`npm run test:collision-hierarchy` verifies world/group rejection without native
+contact dispatch, shared-bound invalidation, swept throws, full pendulum envelopes,
+signed bindings and non-orthogonal box axes. It compares the hierarchy with
+ungrouped contact calls and reports a small clear-space benchmark.
+
 ## Package commands
 
 The scripts in `package.json` are the supported entry points:

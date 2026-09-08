@@ -1,3 +1,7 @@
+import type { SoftBody } from '../physics/soft-body.js';
+import type { FacilityCollision } from '../physics/facility-collision.ts';
+import { collisionHierarchy, type CollisionHierarchy } from '../physics/collision-bounds.ts';
+
 export interface Facility {
   readonly id:string;
   readonly label:string;
@@ -9,6 +13,8 @@ export interface Facility {
   readonly action?:string;
   readonly mobileAction?:string;
   readonly cameraDistance?:number;
+  /** Built-in afterStep methods mutate cage state only through these contacts. */
+  readonly collision?:FacilityCollision;
   interact():boolean;
   step(h:number):void;
   afterStep?():void;
@@ -24,8 +30,10 @@ export class Facilities {
   private readonly prompt=document.createElement('div');
   private readonly hint=document.createElement('span');
   private readonly button=document.createElement('button');
+  private readonly collisionWorld:CollisionHierarchy|undefined;
   onInteract:()=>void=()=>{};
-  constructor() {
+  constructor(body?:SoftBody) {
+    this.collisionWorld=body?collisionHierarchy(body):undefined;
     this.prompt.className='facility-prompt';this.prompt.hidden=true;
     this.hint.className='facility-hint';this.hint.setAttribute('role','status');
     this.button.className='facility-button';this.button.type='button';
@@ -50,7 +58,16 @@ export class Facilities {
     if(this.candidate?.interact()){this.onInteract();this.update();}
   }
   step(h:number) {for(const item of this.items)item.step(h);}
-  afterStep() {for(const item of this.items)item.afterStep?.();}
+  afterStep() {
+    this.collisionWorld?.begin();
+    try {
+      for(const item of this.items){
+        item.afterStep?.();
+        // Unknown facilities may write cage positions directly.
+        if(!item.collision)this.collisionWorld?.invalidate();
+      }
+    }finally{this.collisionWorld?.end();}
+  }
   update() {
     for(const item of this.items)item.update();
     const candidate=this.candidate;this.prompt.hidden=!candidate;

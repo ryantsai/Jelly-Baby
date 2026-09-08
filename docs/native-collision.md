@@ -7,11 +7,16 @@ earlier corrections, and blanket clearance rounds after each Float32 store.
 
 ## Facility contacts
 
-One native call performs conservative candidate selection, the existing bulk
+Registered facilities first share a native cage-bound calculation and cheap
+world/group AABB rejection in JavaScript. Surviving facilities use one native
+call for conservative candidate selection, the existing bulk
 throw sweep, two contact iterations, and orientation stabilization. After the
 first projection, traversal resumes at the next original box and includes
 initially rejected boxes, since the correction invalidates the initial bounds.
 The cylinder retains its one-sided radial barrier and vertical gates.
+Per-piece rejection checks world AABBs before the oriented axes. Bounds include
+the bulk sweep so fast throws cannot skip pieces crossed entirely in one step.
+See [Collision hierarchy](collision-hierarchy.md) for the registration contract.
 
 Sample indices and denominators upload once per collision object. Cage state,
 previous positions, inverse masses and visible bindings already reside in the

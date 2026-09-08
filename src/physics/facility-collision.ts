@@ -10,6 +10,7 @@ function separatedOnAxis(dx:number,dy:number,dz:number,rx:number,ry:number,rz:nu
 
 /** Optional finite-mass response for a moving collision volume. */
 export interface CollisionMotion {
+  nativePendulum?:{speed:number;pivotY:number;pivotZ:number;inertia:number};
   velocityAt(x:number,y:number,z:number,out:PointLike):void;
   inverseMassAt(x:number,y:number,z:number,nx:number,ny:number,nz:number):number;
   applyImpulse(x:number,y:number,z:number,ix:number,iy:number,iz:number):void;
@@ -45,6 +46,7 @@ export class FacilityCollision {
   private readonly bounds=new Float64Array(6);
   private readonly candidates:CollisionBox[]=[];
   private readonly candidateIndices:number[]=[];
+  private native:ReturnType<NonNullable<SoftBody['kernel']>['createFacilityCollision']>|null=null;
   private maxWeightMagnitude=0;
   private maxWeightSumError=0;
 
@@ -85,6 +87,8 @@ export class FacilityCollision {
   /** Resolve tight oriented boxes, such as the swing's timber frame pieces. */
   resolveBoxes(boxes:readonly CollisionBox[],margin=FACILITY_COLLISION_MARGIN) {
     if(!boxes.length)return false;
+    const native=this.nativeKernel();
+    if(native){const changed=native.resolveBoxes(boxes,margin);if(changed!==null){this.finish(changed,true);return changed;}}
     this.findCandidates(boxes,margin);
     if(!this.candidates.length)return false;
     if(stopFacilityThrow(this.body,this.vertices,this.candidates,margin)){this.finish(true);return true;}
@@ -145,6 +149,8 @@ export class FacilityCollision {
    * jumping above the cylinder remains possible.
    */
   resolveCylinderBarrier(centerX:number,centerZ:number,radius:number,minY:number,maxY:number,margin=FACILITY_COLLISION_MARGIN) {
+    const native=this.nativeKernel();
+    if(native){const changed=native.resolveCylinder(centerX,centerZ,radius,minY,maxY,margin);this.finish(changed,true);return changed;}
     const boundary=radius+margin;
     const boundarySquared=boundary*boundary;
     this.updateBounds();
@@ -254,9 +260,14 @@ export class FacilityCollision {
     if(motion)motion.applyImpulse(this.point[0],this.point[1],this.point[2],-impulse*nx,-impulse*ny,-impulse*nz);
   }
 
-  private finish(changed:boolean) {
+  private nativeKernel() {
+    if(!this.body.kernel)return null;
+    return this.native??=this.body.kernel.createFacilityCollision(this.vertices,this.denominators,this.maxWeightMagnitude,this.maxWeightSumError);
+  }
+
+  private finish(changed:boolean,native=false) {
     if(!changed)return;
-    this.body.stabilizeContacts();
+    this.body.stabilizeContacts(native);
     this.body.wake();this.body.updateCenter();this.body.surfaceDirty=true;
   }
 }

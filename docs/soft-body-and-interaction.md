@@ -205,6 +205,11 @@ samples are reconstructed. After any contact it restores full traversal, since
 contact corrections can invalidate the initial enclosure. This is a deliberately bounded approximation between a single
 enclosing AABB and full deforming mesh-to-mesh collision.
 
+The existing WASM module now executes the complete facility pass, including
+the throw sweep and orientation acceptance, directly on its cage memory.
+See [Native collision kernels](native-collision.md) for motion ordering,
+buffer ownership, fallback behavior, and equivalence verification.
+
 ## Floor contact, sleep, and wake-up
 
 Floor constraints use the precomputed four-node contact bindings. A contact

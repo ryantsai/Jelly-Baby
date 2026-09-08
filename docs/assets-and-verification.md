@@ -64,6 +64,11 @@ default compiler lacks WebAssembly support; Apple's system clang may lack it.
 `scripts/compile-kernel.mjs` shares the compiler flags between generation and
 native equivalence verification, invoking the compiler through interactive zsh.
 
+`npm run test:native-collision` checks exact native/JavaScript facility positions,
+velocities, pendulum response, and blanket outputs, then reports a short median
+benchmark of the complete calls. It uses the embedded production module and
+does not need a compiler. See [Native collision kernels](native-collision.md).
+
 ## Package commands
 
 The scripts in `package.json` are the supported entry points:

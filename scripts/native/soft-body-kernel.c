@@ -319,3 +319,6 @@ __attribute__((export_name("update_surface"))) void update_surface(void) {
   }
   meta[7]=minX;meta[8]=minY;meta[9]=minZ;meta[10]=maxX;meta[11]=maxY;meta[12]=maxZ;meta[13]=dsqrt(maxR2);
 }
+
+#include "facility-collision.c"
+#include "blanket-collision.c"

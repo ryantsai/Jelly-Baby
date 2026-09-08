@@ -1,5 +1,10 @@
 # Bed and sleeping
 
+Both blanket contact passes use the existing soft-body WASM module when
+available, preserving the same triangle traversal and projection order.
+See [Native collision kernels](native-collision.md) for shared-memory ownership
+and exact JavaScript comparison checks.
+
 The bed occupies the foreground below the trampoline: world `(.165, .205)` in
 X/Z. Its long axis follows Z, with the pillow at negative Z. Rounded oak,
 an inset headboard, brass foot collars, mattress, piped pillow, and sage

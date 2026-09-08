@@ -208,9 +208,9 @@ export class SoftBody {
 
   // Facility contacts run after the solver and must obey the same acceptance
   // rule before their edited positions reach rendering or the next fixed step.
-  stabilizeContacts() {
+  stabilizeContacts(alreadyStabilized=false) {
     if(!this.kernel){this.preserveOrientation(this.orientationSafety?.safe??this.rest);return;}
-    this.kernel.stabilizeContacts(PHYS.floor);
+    if(!alreadyStabilized)this.kernel.stabilizeContacts(PHYS.floor);
     const meta=this.kernel.meta;this.lastMinJacobian=meta[1];this.limitedSteps+=meta[2];this.guardedSteps+=meta[15];
   }
 

@@ -6,6 +6,7 @@ export class BlanketContact {
   private positions=new Float64Array(0);
   sample(body:SoftBody,heights:Float64Array,columns:number,rows:number,dx:number,dz:number){
     const surface=body.cage.opticalSurface;
+    if(body.kernel){body.kernel.sampleBlanket(surface,heights,columns,rows,dx,dz,BED.x,BED.z);return;}
     if(this.positions.length!==surface.positions.length)this.positions=new Float64Array(surface.positions.length);
     const p=this.positions;
     for(let vertex=0;vertex<p.length/3;vertex++){

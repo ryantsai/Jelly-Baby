@@ -3,6 +3,7 @@ import { readFileSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Buffer } from 'node:buffer';
+import { URL } from 'node:url';
 import { BufferAttribute, Vector3 } from 'three/webgpu';
 import { compileKernel } from './compile-kernel.mjs';
 import { loadModel } from './load-model.mjs';
@@ -20,6 +21,8 @@ try {
     const pattern=/const KERNEL_BASE64='[^']*';/;
     assert(pattern.test(wrapper)&&wrapper.includes('setCenter(center)'));
     const source=wrapper.replace(pattern,`const KERNEL_BASE64='${readFileSync(wasm).toString('base64')}';`)
+      // A data: module has no directory from which to resolve wrapper imports.
+      .replace("'./collision-kernel.js'",JSON.stringify(new URL('../src/physics/collision-kernel.js',import.meta.url).href))
       .replace('setCenter(center)','verification:ex, setCenter(center)');
     const {createSoftBodyKernel}=await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
     const body=new SoftBody(loadModel());

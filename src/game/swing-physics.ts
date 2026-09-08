@@ -36,6 +36,11 @@ export class SwingPhysics {
   };
   constructor(body:SoftBody) {
     this.body=body;
+    const swing=this;
+    this.seatCollisionMotion.nativePendulum={
+      get speed(){return swing.speed;},set speed(value:number){swing.speed=value;},
+      pivotY:SWING.height,pivotZ:SWING.z,inertia:this.seatInertia,
+    };
     const count=body.mass.length;
     this.targetX=new Float64Array(count);this.localY=new Float64Array(count);this.localZ=new Float64Array(count);
     this.stiffness=new Float64Array(count);this.damping=new Float64Array(count);

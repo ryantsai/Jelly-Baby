@@ -37,6 +37,7 @@ export class BlanketClearance {
     return size;
   }
   resolve(body:SoftBody,cloth:Float32Array,columns:number,rows:number,dx:number,dz:number){
+    if(body.kernel)return body.kernel.clearBlanket(body.surface,cloth,columns,rows,dx,dz,BED.x,BED.z);
     const positions=body.surface.positions,ix=body.surface.indices;
     if(this.projected.length!==positions.length)this.projected=new Float64Array(positions.length);
     const p=this.projected;

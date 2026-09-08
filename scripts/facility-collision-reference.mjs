@@ -12,7 +12,8 @@ export class ExhaustiveFacilityCollision extends FacilityCollision {
         for(const box of boxes) {
           const dx=this.point[0]-box.center.x,dy=this.point[1]-box.center.y,dz=this.point[2]-box.center.z;
           const qx=dx*box.xAxis.x+dy*box.xAxis.y+dz*box.xAxis.z;
-          const hx=box.halfSize.x+margin,hy=box.halfSize.y+margin,hz=box.halfSize.z+margin;
+          const boxDelta=box.margin===undefined?0:box.margin-margin;
+          const hx=box.halfSize.x+boxDelta+margin,hy=box.halfSize.y+boxDelta+margin,hz=box.halfSize.z+boxDelta+margin;
           const absQx=Math.abs(qx);
           if(absQx>=hx)continue;
           const qy=dx*box.yAxis.x+dy*box.yAxis.y+dz*box.yAxis.z;

@@ -24,11 +24,12 @@ export function stopFacilityThrow(body:SoftBody,vertices:Int32Array,boxes:readon
     }
     for(const box of boxes) {
       if(box.motion)continue;
+      const boxMargin=box.margin===undefined?margin:box.margin-margin+margin;
       let enter=0,leave=first,ax=0,ay=0,az=0;
       const x=px-box.center.x,y=py-box.center.y,z=pz-box.center.z;
       for(let axis=0;axis<3;axis++) {
         const n=axis===0?box.xAxis:axis===1?box.yAxis:box.zAxis;
-        const extent=(axis===0?box.halfSize.x:axis===1?box.halfSize.y:box.halfSize.z)+margin;
+        const extent=(axis===0?box.halfSize.x:axis===1?box.halfSize.y:box.halfSize.z)+boxMargin;
         const p=x*n.x+y*n.y+z*n.z,v=dx*n.x+dy*n.y+dz*n.z;
         if(Math.abs(v)<1e-15){if(Math.abs(p)>=extent){leave=-1;break;}continue;}
         const a=(-extent-p)/v,b=(extent-p)/v,near=Math.min(a,b),far=Math.max(a,b);
@@ -44,7 +45,7 @@ export function stopFacilityThrow(body:SoftBody,vertices:Int32Array,boxes:readon
         // shallow end-of-step penetration to the ordinary local contact pass;
         // reserve the sweep for normal travel large enough to tunnel.
         const remainingNormalTravel=-(1-Math.max(0,enter))*(dx*ax+dy*ay+dz*az);
-        if(remainingNormalTravel>margin*.25){first=enter;nx=ax;ny=ay;nz=az;}
+        if(remainingNormalTravel>boxMargin*.25){first=enter;nx=ax;ny=ay;nz=az;}
       }
     }
   }

@@ -82,6 +82,9 @@ export class Swing {
       const collisionBox:CollisionBox={
         center:new THREE.Vector3(),xAxis:new THREE.Vector3(1,0,0),yAxis:new THREE.Vector3(0,1,0),zAxis:new THREE.Vector3(0,0,1),
         halfSize:new THREE.Vector3(width/2,height/2,depth/2),
+        // The general facility margin is 2 mm; keep only a sub-pixel fitting
+        // tolerance on the seat so it cannot hold the body after the mesh clears.
+        margin:.0001,
       };
       this.collisionBoxes.push(collisionBox);this.seatBoxes.push(collisionBox);this.seatParts.push({box:collisionBox,x,y,z});
     };

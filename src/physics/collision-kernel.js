@@ -6,6 +6,13 @@ function packPoint(packed,offset,point){
   if(packed[offset+2]!==point.z)packed[offset+2]=point.z;
 }
 
+function packHalfSize(packed,offset,halfSize,delta){
+  const x=halfSize.x+delta,y=halfSize.y+delta,z=halfSize.z+delta;
+  if(packed[offset]!==x)packed[offset]=x;
+  if(packed[offset+1]!==y)packed[offset+1]=y;
+  if(packed[offset+2]!==z)packed[offset+2]=z;
+}
+
 /** Collision buffers belong to one soft-body module and never grow its memory. */
 export function createCollisionKernels(ex,allocCopy,allocZero) {
   let contact=null,clearance=null;
@@ -44,7 +51,7 @@ export function createCollisionKernels(ex,allocCopy,allocZero) {
             packPoint(packed,offset+3,box.xAxis);
             packPoint(packed,offset+6,box.yAxis);
             packPoint(packed,offset+9,box.zAxis);
-            packPoint(packed,offset+12,box.halfSize);
+            packHalfSize(packed,offset+12,box.halfSize,(box.margin??margin)-margin);
             let index=-1;
             if(box.motion){
               const motion=box.motion.nativePendulum;

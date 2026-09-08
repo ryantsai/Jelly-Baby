@@ -180,8 +180,11 @@ The narrow phase evaluates about 2,500 spatially thinned points from the exact
 deformed visible-surface bindings. Each point moves its four owning cage nodes
 through the same inverse-mass weighting used by the soft-body contacts. This is
 enough to keep the rendered surface clear of the simple facility volumes while
-avoiding a full 72,234-vertex triangle collision scan every fixed step. A small
-2 mm contact margin covers the spacing between anchors.
+avoiding a full 72,234-vertex triangle collision scan every fixed step. Most
+facility boxes use a small 2 mm contact margin to cover spacing between
+anchors. The swing frame retains that margin, while its fitted moving seat
+boxes use only a 0.1 mm fitting tolerance so the seat cannot retain contact
+after the mesh has visually cleared.
 
 Both facilities use a `.145 m` grounded approach radius, intentionally larger
 than the physical contact region. The `Press E to ...` affordance therefore
@@ -250,9 +253,10 @@ documented in [Input, audio, and UI](input-audio-ui.md).
 
 ## Performance invariants
 
-Facility collision keeps the same 2,526 spatial samples, margins, contact
-iterations, and exact response, but rejects oriented boxes axis by axis and
-stops the second pass when the first pass found no overlap. The trampoline
+Facility collision keeps the same 2,526 spatial samples, default margin,
+contact iterations, and exact response, but rejects oriented boxes axis by axis
+and stops the second pass when the first pass found no overlap. Authored fitted
+boxes may override that default margin, as the swing seat does. The trampoline
 barrier uses a squared radial test before taking a square root.
 
 Inside the existing proximity gates, collision now bounds the current cage's

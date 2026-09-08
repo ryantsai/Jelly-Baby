@@ -23,6 +23,8 @@ export interface CollisionBox {
   zAxis:PointLike;
   halfSize:PointLike;
   motion?:CollisionMotion;
+  /** Optional per-box override for the facility contact margin. */
+  margin?:number;
 }
 
 // The visible body is much denser than the mechanical cage. A single surface
@@ -116,7 +118,8 @@ export class FacilityCollision {
           const box=activeBoxes[boxIndex];
           const dx=this.point[0]-box.center.x,dy=this.point[1]-box.center.y,dz=this.point[2]-box.center.z;
           const qx=dx*box.xAxis.x+dy*box.xAxis.y+dz*box.xAxis.z;
-          const hx=box.halfSize.x+margin,hy=box.halfSize.y+margin,hz=box.halfSize.z+margin;
+          const boxDelta=box.margin===undefined?0:box.margin-margin;
+          const hx=box.halfSize.x+boxDelta+margin,hy=box.halfSize.y+boxDelta+margin,hz=box.halfSize.z+boxDelta+margin;
           const absQx=Math.abs(qx);
           if(absQx>=hx)continue;
           const qy=dx*box.yAxis.x+dy*box.yAxis.y+dz*box.yAxis.z;
@@ -222,9 +225,10 @@ export class FacilityCollision {
     const rx=(b[3]-b[0])*.5,ry=(b[4]-b[1])*.5,rz=(b[5]-b[2])*.5;
     // Project the cage enclosure onto exactly the axes used by the narrow
     // phase. No assumption about perfectly orthonormal floating-point axes.
-    return !separatedOnAxis(dx,dy,dz,rx,ry,rz,box.xAxis,box.halfSize.x+margin)&&
-      !separatedOnAxis(dx,dy,dz,rx,ry,rz,box.yAxis,box.halfSize.y+margin)&&
-      !separatedOnAxis(dx,dy,dz,rx,ry,rz,box.zAxis,box.halfSize.z+margin);
+    const boxDelta=box.margin===undefined?0:box.margin-margin;
+    return !separatedOnAxis(dx,dy,dz,rx,ry,rz,box.xAxis,box.halfSize.x+boxDelta+margin)&&
+      !separatedOnAxis(dx,dy,dz,rx,ry,rz,box.yAxis,box.halfSize.y+boxDelta+margin)&&
+      !separatedOnAxis(dx,dy,dz,rx,ry,rz,box.zAxis,box.halfSize.z+boxDelta+margin);
   }
 
   private applyContact(sample:number,box:CollisionBox|undefined,nx:number,ny:number,nz:number,depth:number) {

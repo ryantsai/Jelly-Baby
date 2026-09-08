@@ -56,8 +56,8 @@ export class SwingFacility implements Facility {
     if(this.active)return;
     const b=this.physics.body;
     if(Math.abs(b.center.x-SWING.x)>.23||Math.abs(b.center.z-SWING.z)>.23)return;
-    // Tight frame boxes keep a walking jelly out without making the whole
-    // swing's shadow envelope behave like an invisible collision box.
+    // Seat boxes carry a tight fitting-margin override; frame boxes retain the
+    // general margin used by sparse surface contacts.
     this.visual.update(this.physics.angle,this.physics.seatCollisionMotion);
     this.collision.resolveBoxes(this.visual.collisionBoxes);
   }
